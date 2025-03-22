@@ -55,12 +55,10 @@ impl BitmapCollector {
             monitor_data: Vec::default(),
         }
     }
-
-    #[cfg(test)]
-    fn visited_bytes_num(&self) -> u32 {
+    pub fn visited_bytes_num(&self) -> i64 {
         self.filter.visited_bits_num()
     }
-
+    // #[cfg(test)]
     pub fn retrieve_monitor_data(&mut self) -> Vec<Value> {
         self.monitor_data.split_off(0)
     }
@@ -133,6 +131,7 @@ impl FeedbackCollector for BitmapCollector {
         ] {
             let mut mutation_counter = HashMap::new();
             let mut test_case_counter = HashMap::new();
+            let new_bits_count = self.visited_bytes_num() as i64;
             for (mutation_info, count) in counter.into_iter() {
                 if count == 0 {
                     continue;
@@ -150,12 +149,14 @@ impl FeedbackCollector for BitmapCollector {
                     Feedback::new(status)
                         .set_mutation_info(MutationInfo::new(0, k))
                         .set_data(FeedbackData::Counter(v))
+                        .set_new_bits_count(new_bits_count)
                 }));
             self.test_case_feedbacks
                 .extend(test_case_counter.into_iter().map(|(k, v)| {
                     Feedback::new(status)
                         .set_mutation_info(MutationInfo::new(k, 0))
                         .set_data(FeedbackData::Counter(v))
+                        .set_new_bits_count(new_bits_count)
                 }));
         }
 

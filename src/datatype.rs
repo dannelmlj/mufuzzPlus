@@ -210,6 +210,8 @@ pub struct Feedback {
     test_case: Option<TestCase>, // The test case that produce this feedback
     data: Option<FeedbackData>,  // The real feedback data
     mutation_info: Option<MutationInfo>,
+    new_bits_count: Option<i64>,
+    previous_new_bits_count: Option<i64>,
 }
 
 impl Feedback {
@@ -219,6 +221,8 @@ impl Feedback {
             test_case: None,
             data: None,
             mutation_info: None,
+            new_bits_count: None,
+            previous_new_bits_count: None,
         }
     }
 
@@ -283,6 +287,17 @@ impl Feedback {
         }
         self.test_case = Some(test_case);
         self
+    }
+    pub fn set_new_bits_count(mut self, count: i64) -> Self {
+        self.previous_new_bits_count = self.new_bits_count;
+        self.new_bits_count = Some(count);
+        self
+    }
+    pub fn borrow_new_bits_count(&self) -> Option<&i64> {
+        self.new_bits_count.as_ref()
+    }
+    pub fn borrow_previous_new_bits_count(&self) -> Option<&i64> {
+        self.previous_new_bits_count.as_ref()
     }
 }
 

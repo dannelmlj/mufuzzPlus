@@ -472,7 +472,7 @@ impl<'a> Executor<'a, BitmapTracer, &'a [u8], TestCase> for ForkServerExecutor<B
             bind_to_cpu,
         )?;
         let (rlen, status) = forkserver.read_st()?; // Initial handshake, read 4-bytes hello message from the forkserver.
-
+        println!("Rlen: {}, Status: {:032b}", rlen, status);
         if rlen != 4 {
             return Err(Error::ForkServer(
                 "Failed to start a forkserver".to_string(),

@@ -283,7 +283,7 @@ impl NewBitFilter {
         }
     }
 
-    pub fn visited_bits_num(&self) -> u32 {
+    pub fn visited_bits_num(&self) -> i64 {
         let mut result = 0;
         for i in &self.virgin_bits {
             if *i != VIRGIN_BYTE {

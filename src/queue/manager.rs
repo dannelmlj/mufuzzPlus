@@ -185,8 +185,12 @@ impl QueueManager for SimpleQueueManager {
                     unreachable!();
                 }
             };
-
-            let score_change = counter
+            // Rewarding new bits found by the test case, reward more on uptrends.
+            let new_bits = feedback.borrow_new_bits_count().unwrap_or(&1);
+            let previous_new_bits = feedback.borrow_previous_new_bits_count().unwrap_or(&1);
+            let scoring_new_bits = if new_bits > previous_new_bits {40} else {5};
+            
+            let score_change_execution = counter
                 * match feedback.get_status() {
                     ExecutionStatus::Ok => SCORE_UNINTERESTING,
                     ExecutionStatus::Interesting => SCORE_INTERESTING,
@@ -194,6 +198,11 @@ impl QueueManager for SimpleQueueManager {
 
                     ExecutionStatus::Crash => SCORE_CRASH,
                 };
+            
+
+            let new_bits_score = *new_bits * scoring_new_bits;
+            
+            let score_change = score_change_execution + new_bits_score;
             self.add_score_to_test_case(pid, score_change);
             score_changes
                 .entry(pid)
