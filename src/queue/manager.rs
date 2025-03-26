@@ -8,6 +8,10 @@ use rand::Rng;
 use rand::SeedableRng;
 use std::cmp;
 use std::collections::HashMap;
+use std::fs;
+use std::fs::File;
+use std::io::Write;
+use std::path::Path;
 use std::collections::VecDeque;
 
 pub const DEFAULT_SCORE: i64 = 100000000;
@@ -123,7 +127,7 @@ impl SimpleQueueManager {
             to_mutate_queue: VecDeque::default(),
             interesting_queue: HashMap::default(),
             rng: StdRng::seed_from_u64(crate::datatype::get_id() as u64),
-            minimizer: test_case_minimizer,
+            minimizer: test_case_minimizer            
         }
     }
 
@@ -145,6 +149,21 @@ impl SimpleQueueManager {
         }
     }
 
+    fn save_test_case_to_file(&mut self, case_id: u32, test_case: &TestCase, output_dir: &str) -> std::io::Result<()> {
+        fs::create_dir_all(output_dir)?;
+        // println!("Saving test case to file");
+        let filename = format!("{}/input_{}", output_dir, case_id);
+        let path = Path::new(&filename);
+    
+        let mut file = File::create(&path)?;
+
+        file.write_all(test_case.buffer())?;
+    
+        Ok(())
+    }
+
+
+
     fn add_new_test_case(&mut self, test_case: TestCase) {
         let mut test_case = test_case;
         let new_id = test_case.get_id();
@@ -153,6 +172,10 @@ impl SimpleQueueManager {
             assert_eq!(test_case.get_id(), new_id);
         }
         assert!(!self.interesting_queue.contains_key(&new_id));
+
+        if let Err(e) = self.save_test_case_to_file(new_id, &test_case, "/home/dannel/Documents/Dannel/Projects/mufuzzPlus/mufuzz_output/queue") {
+            eprintln!("Failed to save test case: {}", e);
+        }
         self.interesting_queue
             .insert(new_id, TestCaseWithMeta::new(test_case, DEFAULT_SCORE));
     }
@@ -186,9 +209,22 @@ impl QueueManager for SimpleQueueManager {
                 }
             };
             // Rewarding new bits found by the test case, reward more on uptrends.
-            let new_bits = feedback.borrow_new_bits_count().unwrap_or(&1);
-            let previous_new_bits = feedback.borrow_previous_new_bits_count().unwrap_or(&1);
-            let scoring_new_bits = if new_bits > previous_new_bits {40} else {5};
+
+            let new_bits = match feedback.borrow_data() {
+                Some(FeedbackData::NewCoverage(new_bits)) => new_bits.len() as i64,
+                _ => 0,
+            };
+            let previous_new_bits = match feedback.borrow_previous_data() {
+                Some(FeedbackData::NewCoverage(new_bits)) => new_bits.len() as i64,
+                _ => 0,
+            };
+            // feedback.borrow_new_bits_count().unwrap_or(&1);
+            // let previous_new_bits = feedback.borrow_previous_new_bits_count().unwrap_or(&1);
+            let scoring_new_bits = if new_bits > previous_new_bits {1000} else {5};
+
+            // let new_bits = feedback.borrow_new_bits_count().unwrap_or(&1);
+            // let previous_new_bits = feedback.borrow_previous_new_bits_count().unwrap_or(&1);
+            // let scoring_new_bits = if new_bits > previous_new_bits {40} else {5};
             
             let score_change_execution = counter
                 * match feedback.get_status() {
@@ -200,7 +236,7 @@ impl QueueManager for SimpleQueueManager {
                 };
             
 
-            let new_bits_score = *new_bits * scoring_new_bits;
+            let new_bits_score = new_bits * scoring_new_bits;
             
             let score_change = score_change_execution + new_bits_score;
             self.add_score_to_test_case(pid, score_change);

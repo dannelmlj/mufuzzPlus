@@ -124,6 +124,10 @@ impl TestCase {
     pub fn gen_id(&mut self) {
         self.id = get_id();
     }
+
+    pub fn buffer(&self) -> &[u8] {
+        &self.buffer
+    }
 }
 
 static COUNTER: AtomicU32 = AtomicU32::new(0);
@@ -212,6 +216,7 @@ pub struct Feedback {
     mutation_info: Option<MutationInfo>,
     new_bits_count: Option<i64>,
     previous_new_bits_count: Option<i64>,
+    previous_feedbackData: Option<FeedbackData>,
 }
 
 impl Feedback {
@@ -223,6 +228,7 @@ impl Feedback {
             mutation_info: None,
             new_bits_count: None,
             previous_new_bits_count: None,
+            previous_feedbackData: None,
         }
     }
 
@@ -277,8 +283,13 @@ impl Feedback {
     }
 
     pub fn set_data(mut self, data: FeedbackData) -> Self {
+        self.previous_feedbackData = self.data.clone();
         self.data = Some(data);
         self
+    }
+
+    pub fn borrow_previous_data(&self) -> Option<&FeedbackData> {
+        self.previous_feedbackData.as_ref()
     }
 
     pub fn set_test_case(mut self, test_case: TestCase) -> Self {

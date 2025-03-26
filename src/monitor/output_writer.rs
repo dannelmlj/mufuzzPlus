@@ -69,11 +69,14 @@ impl OutputWriter {
 
     pub fn write_plot_data(&self, fuzzer_stat: &FuzzerInfo) -> std::io::Result<()> {
         let data = format!(
-            "{}, {}, {}, {}\n",
+            "{}, {}, {}, {}, {}, {}, {}\n",
             fuzzer_stat.get_fuzzing_time(),
             fuzzer_stat.get_exec(),
             fuzzer_stat.get_timeout_exec(),
             fuzzer_stat.get_crash(),
+            fuzzer_stat.get_interesting_inputs(),
+            fuzzer_stat.get_bits_hit(),
+            fuzzer_stat.get_total_coverage()
         );
         self.plot_data_file
             .lock()

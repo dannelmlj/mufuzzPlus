@@ -4,7 +4,7 @@ use psutil::cpu::CpuPercentCollector;
 use serde_json::Value;
 use std::fs;
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicIsize, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicIsize, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
@@ -24,6 +24,7 @@ pub struct FuzzerInfo {
     num_crashes: AtomicU64,
     cycle_done: AtomicU64,
     cur_coverage: AtomicU64,
+    cur_non_virgin_bits: AtomicI64,
 
     // CPU usage util past print
     cpu_usage: AtomicU64,
@@ -70,6 +71,7 @@ impl FuzzerInfo {
             cycle_done: AtomicU64::new(0),
             total_coverage: 0,
             cur_coverage: AtomicU64::new(0),
+            cur_non_virgin_bits: AtomicI64::new(0),
             cmd: "".to_string(),
             num_executor: 0,
             num_mutator: 0,
@@ -141,6 +143,7 @@ impl FuzzerInfo {
         let timeout_exec = self.num_timeout_exec.load(Ordering::Relaxed);
         let timeout_exec_str = pretty_format_num(timeout_exec);
         let current_coverage = pretty_format_num(self.cur_coverage.load(Ordering::Relaxed));
+        let current_hit_bits = pretty_format_num(self.cur_non_virgin_bits.load(Ordering::Relaxed).max(0) as u64);
         let time = pretty_format_num(elapsed_time / 1000);
         let crash_num = pretty_format_num(self.num_crashes.load(Ordering::Relaxed));
         let timeout_rate = timeout_exec as f64 / num_exec.max(1) as f64 * 100f64;
@@ -155,7 +158,7 @@ impl FuzzerInfo {
         Total exec: {total_exec}, current speed: {cur_exec_speed}/s, \
         average speed: {average_speed}/s, per core: {average_speed_per_core}/s, \
         timeout exec: {timeout_exec_str}, crash: {crash_num}, \
-        Interesting inputs {current_coverage}, timeout rate: {timeout_rate:.3}%, cpu usage: {cpu_percent}%, average cpu usage {cpu_average:.1}%"
+        Interesting inputs {current_coverage}, Hit bits {current_hit_bits} timeout rate: {timeout_rate:.3}%, cpu usage: {cpu_percent}%, average cpu usage {cpu_average:.1}%"
         );
 
         self.save_plot_data();
@@ -278,6 +281,22 @@ impl FuzzerInfo {
 
     pub fn add_coverage(&self, coverage: u64) {
         self.cur_coverage.fetch_add(coverage, Ordering::Relaxed);
+    }
+
+    pub fn add_new_bits(&self, bits: i64) {
+        self.cur_non_virgin_bits.fetch_add(bits, Ordering::Relaxed);
+    }
+
+    pub fn get_interesting_inputs(&self) -> u64 {
+        self.cur_coverage.load(Ordering::Relaxed)
+    }
+
+    pub fn get_bits_hit(&self) -> i64 {
+        self.cur_non_virgin_bits.load(Ordering::Relaxed)
+    }
+
+    pub fn get_total_coverage(&self) -> u64 {
+        self.total_coverage
     }
 
     pub fn set_cmd(&mut self, cmd: String) -> &mut Self {

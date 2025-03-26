@@ -247,6 +247,7 @@ impl BitFlipMutator {
         .enumerate()
         .map(|(idx, &func)| MutatorFunc::new(idx as u32, func, DEFAULT_SCORE))
         .collect::<Vec<MutatorFunc>>();
+        println!("MutatorFuncs: {}", mutator_funcs.len());
         BitFlipMutator {
             mutated_test_cases: Vec::default(),
             rng: MutationRng::from_entropy(),
@@ -624,9 +625,19 @@ impl Mutator for BitFlipMutator {
                 }
             };
 
-            let new_bits = feedback.borrow_new_bits_count().unwrap_or(&1);
-            let previous_new_bits = feedback.borrow_previous_new_bits_count().unwrap_or(&1);
+            let new_bits = match feedback.borrow_data() {
+                Some(FeedbackData::NewCoverage(new_bits)) => new_bits.len() as i64,
+                _ => 0,
+            };
+            let previous_new_bits = match feedback.borrow_previous_data() {
+                Some(FeedbackData::NewCoverage(new_bits)) => new_bits.len() as i64,
+                _ => 0,
+            };
+            // feedback.borrow_new_bits_count().unwrap_or(&1);
+            // let previous_new_bits = feedback.borrow_previous_new_bits_count().unwrap_or(&1);
             let scoring_new_bits = if new_bits > previous_new_bits {1000} else {5};
+
+            println!("Score new bits: {} FROM MODE 6", scoring_new_bits);
 
             let score_change_execution = counter
                 * match feedback.get_status() {
@@ -636,7 +647,7 @@ impl Mutator for BitFlipMutator {
                     ExecutionStatus::Interesting => SCORE_INTERESTING,
                 };
             
-            let new_bits_score = *new_bits * scoring_new_bits;
+            let new_bits_score = new_bits * scoring_new_bits;
             
             let score_change = score_change_execution + new_bits_score;
 

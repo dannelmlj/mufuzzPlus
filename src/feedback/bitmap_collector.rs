@@ -76,6 +76,7 @@ impl FeedbackCollector for BitmapCollector {
 
         let mut total_timeout: u64 = 0;
         let mut total_crash: u64 = 0;
+        let mut total_new_bits: i64 = 0;
 
         for mut feedback in feedbacks.into_iter() {
             assert!(feedback.is_valid());
@@ -88,6 +89,7 @@ impl FeedbackCollector for BitmapCollector {
                     let coverage = feedback.take_data().unwrap().into_new_coverage().unwrap();
                     if let Some(new_bits) = self.filter.filter_old_bits_mut(coverage) {
                         assert!(feedback.contain_test_case());
+                        total_new_bits += new_bits.len() as i64;
                         interesting_test_cases
                             .push(feedback.set_data(FeedbackData::NewCoverage(new_bits)));
 
@@ -122,6 +124,11 @@ impl FeedbackCollector for BitmapCollector {
             self.monitor_data.push(json!({ "timeout": total_timeout }));
         }
 
+        if total_new_bits != 0 {
+            self.monitor_data
+                .push(json!({ "new_bits": total_new_bits }));
+        }
+
         // Further separate them based on mutation info and parent id.
         for (status, counter) in [
             (ExecutionStatus::Ok, uninteresting_counter),
@@ -132,6 +139,7 @@ impl FeedbackCollector for BitmapCollector {
             let mut mutation_counter = HashMap::new();
             let mut test_case_counter = HashMap::new();
             let new_bits_count = self.visited_bytes_num() as i64;
+            // total_new_bits += new_bits_count;
             for (mutation_info, count) in counter.into_iter() {
                 if count == 0 {
                     continue;
@@ -159,6 +167,8 @@ impl FeedbackCollector for BitmapCollector {
                         .set_new_bits_count(new_bits_count)
                 }));
         }
+
+
 
         self.interesting_test_cases.extend(interesting_test_cases);
         self.crash_test_cases.extend(crash_test_cases);

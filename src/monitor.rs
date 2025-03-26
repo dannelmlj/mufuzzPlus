@@ -156,6 +156,8 @@ impl Monitor for SimpleMonitor {
             self.fuzzer_info.add_timeout_exec(v.as_u64().unwrap());
         } else if let Some(v) = stats.get("interesting_test_case") {
             self.fuzzer_info.add_coverage(v.as_u64().unwrap());
+        } else if let Some(v) = stats.get("new_bits") {
+            self.fuzzer_info.add_new_bits(v.as_i64().unwrap());
         } else {
             unreachable!();
         }
