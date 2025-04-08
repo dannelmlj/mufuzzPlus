@@ -65,6 +65,11 @@ impl BitmapTracer {
     pub fn update_bits(&mut self, bits: &Vec<NewBit>) {
         self.filter.update_bits(bits);
     }
+
+    pub fn get_number_of_visited_bits(&mut self) -> i64 {
+        let result = self.filter.number_of_visited_bits_in_raw_bitmap(self.bitmap.map_mut());
+        result
+    }
 }
 
 impl<'a> Tracer<'a, &'a [u8]> for BitmapTracer {
@@ -517,16 +522,19 @@ impl<'a> Executor<'a, BitmapTracer, &'a [u8], TestCase> for ForkServerExecutor<B
         let mut feedback = Feedback::new(status).set_mutation_info(mutation_info);
         match status {
             ExecutionStatus::Ok => {
+                let visited_bits = self.tracer.get_number_of_visited_bits();
                 if let Some(new_bits) = self.tracer.construct_feedback() {
                     feedback = Feedback::new(ExecutionStatus::Interesting)
                         .set_data(FeedbackData::new_coverage(new_bits))
                         .set_test_case(test_case);
                 }
+                feedback = feedback.set_visited_bits_count(visited_bits);
             }
             ExecutionStatus::Crash => {
                 feedback = feedback.set_test_case(test_case);
             }
             ExecutionStatus::Timeout => {
+                let visited_bits = self.tracer.get_number_of_visited_bits();
                 if let Some(new_bits) = self.tracer.construct_feedback_without_chaning_virgin() {
                     if !new_bits.is_empty() {
                         let old_timeout = self.set_timeout(TimeSpec::milliseconds(1000));
@@ -542,7 +550,8 @@ impl<'a> Executor<'a, BitmapTracer, &'a [u8], TestCase> for ForkServerExecutor<B
                             self.tracer.update_bits(&new_bits);
                             feedback = Feedback::new(result)
                                 .set_data(FeedbackData::new_coverage(new_bits))
-                                .set_test_case(test_case);
+                                .set_test_case(test_case)
+                                .set_visited_bits_count(visited_bits);
                         }
                     }
                 }

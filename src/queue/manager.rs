@@ -218,27 +218,29 @@ impl QueueManager for SimpleQueueManager {
                 Some(FeedbackData::NewCoverage(new_bits)) => new_bits.len() as i64,
                 _ => 0,
             };
-            // feedback.borrow_new_bits_count().unwrap_or(&1);
-            // let previous_new_bits = feedback.borrow_previous_new_bits_count().unwrap_or(&1);
-            let scoring_new_bits = if new_bits > previous_new_bits {1000} else {5};
+            let scoring_new_bits = if new_bits > previous_new_bits {100} else {5};
 
-            // let new_bits = feedback.borrow_new_bits_count().unwrap_or(&1);
-            // let previous_new_bits = feedback.borrow_previous_new_bits_count().unwrap_or(&1);
-            // let scoring_new_bits = if new_bits > previous_new_bits {40} else {5};
+            // Rewarding test cases that touch more bits.
+            let scoring_visited_bits = match feedback.get_status(){
+                ExecutionStatus::Ok => 30 * feedback.borrow_visited_bits_count().unwrap_or(&1),
+                ExecutionStatus::Interesting => 100 * feedback.borrow_visited_bits_count().unwrap_or(&1),
+                ExecutionStatus::Timeout => 0,
+                ExecutionStatus::Crash => 0,
+            };
+
             
             let score_change_execution = counter
                 * match feedback.get_status() {
                     ExecutionStatus::Ok => SCORE_UNINTERESTING,
                     ExecutionStatus::Interesting => SCORE_INTERESTING,
                     ExecutionStatus::Timeout => SCORE_TIMEOUT,
-
                     ExecutionStatus::Crash => SCORE_CRASH,
                 };
             
 
             let new_bits_score = new_bits * scoring_new_bits;
             
-            let score_change = score_change_execution + new_bits_score;
+            let score_change = score_change_execution + new_bits_score + scoring_visited_bits;
             self.add_score_to_test_case(pid, score_change);
             score_changes
                 .entry(pid)

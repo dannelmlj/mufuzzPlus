@@ -220,6 +220,7 @@ impl NewBitFilter {
                         }
                     }
                 }
+                // println!("raw_info: {:?}", raw_info);
                 raw_info_ptr = raw_info_ptr.add(1);
                 virgin_bits_ptr = virgin_bits_ptr.add(1);
             }
@@ -283,6 +284,28 @@ impl NewBitFilter {
         }
     }
 
+    pub fn number_of_visited_bits_in_raw_bitmap(&self, raw_info: &mut [u8]) -> i64 {
+        let mut result = 0;
+        let mut raw_info_ptr: *const u64 = raw_info.as_ptr() as *const u64;
+        const WORD_SIZE: usize = 8;
+
+        for i in (0..raw_info.len()).step_by(WORD_SIZE) {
+            unsafe {
+                if *raw_info_ptr != 0 {
+                    for (_, v) in raw_info.iter().enumerate().skip(i).take(WORD_SIZE) {
+                        let new_bit = *v;
+                        if new_bit != 0{
+                            result += 1
+                        }
+                    }
+                }
+                raw_info_ptr = raw_info_ptr.add(1);
+            }
+        }
+
+        result
+    }
+
     pub fn visited_bits_num(&self) -> i64 {
         let mut result = 0;
         for i in &self.virgin_bits {
@@ -302,6 +325,8 @@ fn filter_correctly_classify_hit_count() {
     raw_info[0x1] = 0xe0;
     raw_info[0x10] = 0x4;
     raw_info[0x100] = 0xe1;
+
+    println!("raw_info: {:?}", raw_info);
 
     let result = nbfilter.filter(&mut raw_info).unwrap();
     assert_eq!(result.len(), 3);
@@ -328,4 +353,22 @@ fn filter_correctly_classify_hit_count() {
         assert_eq!(result[0], NewBit::new(0x1, 0x10));
         assert_eq!(result[1], NewBit::new(0x10, 0xB));
     }
+}
+#[test]
+
+fn filter_is_good() {
+    let map_size = 65536;
+    let nbfilter = NewBitFilter::new(map_size);
+    let mut raw_info = vec![0; map_size];
+    raw_info[0x1] = 0xe0;
+    raw_info[0x10] = 0x4;
+    raw_info[0x100] = 0xe1;
+    raw_info[0x1000] = 0x1;
+    raw_info[0x1000] = 0x4;
+
+    // println!("raw_info: {:?}", raw_info);
+
+    let result = nbfilter.number_of_visited_bits_in_raw_bitmap(&mut raw_info);
+    // assert_eq!(result.len(), 3);
+    println!("result: {:?}", result);
 }

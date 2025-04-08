@@ -240,8 +240,6 @@ impl BitFlipMutator {
             Self::afl_14_overwrite_bytes,
             Self::rotate_bits,
             Self::flip_all_bits,
-            Self::bit_masking,
-            Self::endianness_flip,
         ]
         .iter()
         .enumerate()
@@ -492,7 +490,7 @@ impl BitFlipMutator {
         let bit_idx = rng.gen_range(1..8);
         let left_or_right = rng.gen_range(0..2);
         
-        let _ = match left_or_right {
+        new_buf[idx] = match left_or_right {
             0 => new_buf[idx].rotate_left(bit_idx),
             _ => new_buf[idx].rotate_right(bit_idx),
         };
@@ -508,50 +506,6 @@ impl BitFlipMutator {
         }
         Some(test_case.create_variant(new_buf))
     }
-
-    fn bit_masking(test_case: &TestCase, rng: &mut MutationRng) -> Option<TestCase> {
-        let old_buf = test_case.get_buffer();
-        let mut new_buf = old_buf.clone();
-        let idx = rng.gen_range(0..old_buf.len());
-        let mask_choice = rng.gen_range(0..2);
-        new_buf[idx] = match mask_choice {
-            0 => 0xFF,
-            1 => 0x00,
-            _ => unreachable!()
-        };
-        Some(test_case.create_variant(new_buf))
-    }
-
-    fn endianness_flip (test_case: &TestCase, rng: &mut MutationRng) -> Option<TestCase> {
-        let old_buf = test_case.get_buffer();
-        if old_buf.len() < size_of::<u32>() {
-            return None;
-        }
-        let mut new_buf = old_buf.clone();
-        let idx = rng.gen_range(0..old_buf.len() - size_of::<u32>() + 1);
-        let endian = (&[0, 1]).choose(rng);
-        let mut new_val = match endian {
-            Some(0) => u32::from_be_bytes(
-                new_buf[idx..idx + size_of::<u32>()]
-                    .try_into()
-                    .unwrap(),
-            ),
-            _ => u32::from_le_bytes(
-                new_buf[idx..idx + size_of::<u32>()]
-                    .try_into()
-                    .unwrap(),
-            ),
-        };
-        new_val = new_val.swap_bytes();
-        let new_bytes = match endian {
-            Some(0) => new_val.to_be_bytes(),
-            _ => new_val.to_le_bytes(),
-        };
-        let bytes = &mut new_buf[idx..idx + size_of::<u32>()];
-        bytes.copy_from_slice(&new_bytes);
-        Some(test_case.create_variant(new_buf))
-    }
-
 
 
     pub fn update_mutator_func_score(&mut self, scores: Vec<(u32, i64)>) {
@@ -633,11 +587,14 @@ impl Mutator for BitFlipMutator {
                 Some(FeedbackData::NewCoverage(new_bits)) => new_bits.len() as i64,
                 _ => 0,
             };
-            // feedback.borrow_new_bits_count().unwrap_or(&1);
-            // let previous_new_bits = feedback.borrow_previous_new_bits_count().unwrap_or(&1);
-            let scoring_new_bits = if new_bits > previous_new_bits {1000} else {5};
+            let scoring_new_bits = if new_bits > previous_new_bits {100} else {5};
 
-            println!("Score new bits: {} FROM MODE 6", scoring_new_bits);
+            let scoring_visited_bits = match feedback.get_status(){
+                ExecutionStatus::Ok => 30 * feedback.borrow_visited_bits_count().unwrap_or(&1),
+                ExecutionStatus::Interesting => 100 * feedback.borrow_visited_bits_count().unwrap_or(&1),
+                ExecutionStatus::Timeout => 0,
+                ExecutionStatus::Crash => 0,
+            };
 
             let score_change_execution = counter
                 * match feedback.get_status() {
@@ -649,7 +606,7 @@ impl Mutator for BitFlipMutator {
             
             let new_bits_score = new_bits * scoring_new_bits;
             
-            let score_change = score_change_execution + new_bits_score;
+            let score_change = score_change_execution + new_bits_score + scoring_visited_bits;
 
             self.mutator_funcs[mutator_func_id as usize].score += score_change;
             assert!(self.mutator_funcs[mutator_func_id as usize].score > 0);
@@ -1334,6 +1291,27 @@ mod tests {
             "Only {} of the new test cases are really new!",
             diff_counter
         );
+    }
+    #[test]
+    fn rotate_bits_test() {
+        let mut m = BitFlipMutator::new();
+        let test_case = TestCase::new(vec![16; 10], 0);
+
+        println!("Test case {:?}", test_case.get_buffer());
+        let new_test_case = BitFlipMutator::rotate_bits(&test_case, m.get_rng()).unwrap();
+
+        println!("{:?}", new_test_case.get_buffer());
+    }
+
+    #[test]
+    fn flip_all_bits_test() {
+        let mut m = BitFlipMutator::new();
+        let test_case = TestCase::new(vec![123; 10], 0);
+
+        println!("Test case {:?}", test_case.get_buffer());
+        let new_test_case = BitFlipMutator::flip_all_bits(&test_case, m.get_rng()).unwrap();
+
+        println!("{:?}", new_test_case.get_buffer());
     }
 
     #[test]

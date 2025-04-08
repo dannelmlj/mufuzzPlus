@@ -216,7 +216,8 @@ pub struct Feedback {
     mutation_info: Option<MutationInfo>,
     new_bits_count: Option<i64>,
     previous_new_bits_count: Option<i64>,
-    previous_feedbackData: Option<FeedbackData>,
+    previous_feedback_data: Option<FeedbackData>,
+    visited_bits_count: Option<i64>,
 }
 
 impl Feedback {
@@ -228,7 +229,8 @@ impl Feedback {
             mutation_info: None,
             new_bits_count: None,
             previous_new_bits_count: None,
-            previous_feedbackData: None,
+            previous_feedback_data: None,
+            visited_bits_count: None,
         }
     }
 
@@ -283,13 +285,22 @@ impl Feedback {
     }
 
     pub fn set_data(mut self, data: FeedbackData) -> Self {
-        self.previous_feedbackData = self.data.clone();
+        self.previous_feedback_data = self.data.clone();
         self.data = Some(data);
         self
     }
 
     pub fn borrow_previous_data(&self) -> Option<&FeedbackData> {
-        self.previous_feedbackData.as_ref()
+        self.previous_feedback_data.as_ref()
+    }
+
+    pub fn set_visited_bits_count(mut self, count: i64) -> Self {
+        self.visited_bits_count = Some(count);
+        self
+    }
+
+    pub fn borrow_visited_bits_count(&self) -> Option<&i64> {
+        self.visited_bits_count.as_ref()
     }
 
     pub fn set_test_case(mut self, test_case: TestCase) -> Self {

@@ -139,6 +139,7 @@ impl FeedbackCollector for BitmapCollector {
             let mut mutation_counter = HashMap::new();
             let mut test_case_counter = HashMap::new();
             let new_bits_count = self.visited_bytes_num() as i64;
+            
             // total_new_bits += new_bits_count;
             for (mutation_info, count) in counter.into_iter() {
                 if count == 0 {

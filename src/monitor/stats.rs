@@ -4,7 +4,7 @@ use psutil::cpu::CpuPercentCollector;
 use serde_json::Value;
 use std::fs;
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicI64, AtomicIsize, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
